@@ -2,7 +2,7 @@
 
 const wap = require('webapi-parser').WebApiParser
 const utils = require('./utils')
-
+const join = require("path").join;
 /**
  * Converts RAML data type to JSON schema.
  *
@@ -15,10 +15,34 @@ const utils = require('./utils')
  * @return {object} JSON Schema containing converted type.
  */
 async function dt2js (ramlData, typeName, options = {}) {
+	if(options.addType) {
+		var ReplaceTypeString = 'application/json';
+		ramlData  = ramlData.replace(ReplaceTypeString, ReplaceTypeString.concat('\ntypes: \n  ').concat(typeName).concat(':'));
+	}
+	
+	var b = ramlData.split(/\n/);
+	var flag = false;
+	var dots = '    ';
+	ramlData = "";
+	
+	b.forEach(item => {
+		if(item.indexOf('properties:')>-1) { 
+			if(!options.additionalProperties) {
+				ramlData = ramlData.concat(dots).concat("additionalProperties: ").concat(options.additionalProperties).concat("\n"); 
+			}
+			flag = true;
+		}
+		if(flag === true) {
+			ramlData = ramlData.concat(dots.concat(item))+'\n'; 
+		} else {
+			ramlData = ramlData.concat(item+'\n');
+		}
+	}) ;
+	
   const patchedData = patchRamlData(ramlData, typeName)
   let model
   if (options.basePath) {
-    const location = utils.basePathToURL(options.basePath, 'raml')
+    const location = utils.genBasePathLocation(options.basePath, 'raml')
     model = await wap.raml10.parse(patchedData, location)
   } else {
     model = await wap.raml10.parse(patchedData)
@@ -39,10 +63,23 @@ async function dt2js (ramlData, typeName, options = {}) {
         fixFileTypeProperties(val))),
     2
   )
+  
+  if(options.isArray) {
+	var replaceString = '"$ref": "#/definitions/'+typeName+'"';
+	jsonSchema  = jsonSchema.replace(replaceString, '"oneOf": [{"type": "array","items": { '+replaceString+' }},{'+replaceString+'}  ]');
+  }
+  
+  
+  if(options.additionalProperties) {
+	var replacePropertiesString = 'properties:';
+	jsonSchema  = jsonSchema.replace(replacePropertiesString, 'additionalProperties:'.concat(options.additionalProperties).concat('\n').concat(replacePropertiesString).concat('\n'));
+  }
+
   const finalSchema = migrateDraft(JSON.parse(jsonSchema), options.draft)
   if (options.validate) {
     validateJsonSchema(finalSchema)
   }
+
   return finalSchema
 }
 
