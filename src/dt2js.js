@@ -66,7 +66,7 @@ async function dt2js (ramlData, typeName, options = {}) {
   
   if(options.isArray) {
 	var replaceString = '"$ref": "#/definitions/'+typeName+'"';
-	jsonSchema  = jsonSchema.replace(replaceString, '"oneOf": [{"type": "array","items": { '+replaceString+' }},{'+replaceString+'}  ]');
+	jsonSchema  = jsonSchema.replace(replaceString, '"oneOf": [{"type": "array","items": { '+replaceString+' }},{'+replaceString+', "type": "object"}  ]');
   }
   
   
